@@ -787,25 +787,34 @@ function progFor(phaseId, key, week){
 }
 
 /* ============================= STATE / STORAGE ============================= */
+/* Persists locally in this browser via localStorage — stays on this device,
+   survives closing the tab/app, no account or internet needed after first load. */
+const STORAGE_KEY = "build-progress-v1";
 let state = { idx: 2, checked: {} };
+let storageAvailable = true;
 
-async function loadState(){
+function loadState(){
   try{
-    const r = await window.storage.get("build-progress-v1");
-    if(r && r.value){
-      const parsed = JSON.parse(r.value);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
       if(typeof parsed.idx === "number") state.idx = parsed.idx;
       if(parsed.checked) state.checked = parsed.checked;
     }
-  }catch(e){ /* first run, no saved state */ }
+  }catch(e){
+    storageAvailable = false; /* e.g. private browsing with storage disabled */
+  }
   render();
 }
+
 let saveTimer=null;
 function saveState(){
+  if(!storageAvailable) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async ()=>{
-    try{ await window.storage.set("build-progress-v1", JSON.stringify(state)); }catch(e){}
-  }, 300);
+  saveTimer = setTimeout(()=>{
+    try{ window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ storageAvailable = false; }
+  }, 200);
 }
 
 function exKey(scope, exIdx){ return scope+"::"+exIdx; }
@@ -1047,6 +1056,7 @@ function openReference(){
     + '<h3>Pain Rules</h3><p>'+REFERENCE.pain+'</p>'
     + '<h3>Eating for the Eight-Pack</h3><p>'+REFERENCE.nutrition+'</p>'
     + '<h3>Exercise Library</h3><table>'+lib+'</table>'
+    + '<h3>About Your Data</h3><p>Checkboxes and your current position save to this browser only (localStorage), on this device. Clearing your browser data/cache will erase progress, and it won\u2019t carry over to a different browser or phone. Nothing is sent anywhere.</p>'
     + '</div></div>';
   const div = document.createElement("div");
   div.innerHTML = modalHtml;
